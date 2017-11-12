@@ -4,28 +4,30 @@
 
 using namespace std;
 
-//calculate CRC-15 of a frame
-vector <unsigned int> crc_15(const vector <unsigned int>& input)
+//calculate CRC of a frame
+vector <unsigned int> crc(vector <unsigned int> const& input,const unsigned int crc_version)
 {
     vector <unsigned int> crc_input=input;
-    vector <unsigned int> crc_output (15,0);
-    vector <unsigned int> zeros (15,0);
+    vector <unsigned int> crc_output (crc_version,0);
+    vector <unsigned int> zeros (crc_version,0);
 
-    int loop=crc_input.size();
-    int i,j;
+    int i,j,loop;
 
-    //Add 15 zeros to the end of crc_input
+    //exit if crc_version != (15,17,21)
+    if (crc_version!=15 && crc_version!=17 && crc_version!=21)
+        exit(EXIT_FAILURE);
+
+    //Add 'crc_version' zeros to the end of crc_input
     crc_input.insert(crc_input.begin(),zeros.begin(),zeros.end());
-    /* display
-    cout <<"00: ";
-    print_table(crc_output);*/
+    loop=crc_input.size();
 
+    //calculate crc
     for(i=loop;i>0;i--)
     {
-        //if crc_output=0 then shift left
-        if(crc_output[14]==0)
+        //if MSB of crc_output=0 then shift left
+        if(crc_output[crc_version-1]==0)
         {
-            for(j=14;j>0;j--)
+            for(j=crc_version-1;j>0;j--)
                 crc_output[j]=crc_output[j-1];
 
             crc_output[0]=crc_input[crc_input.size()-1];
@@ -33,25 +35,45 @@ vector <unsigned int> crc_15(const vector <unsigned int>& input)
             crc_input.pop_back();
         }
 
-        //if crc_output=1 then shift left and xor with crc-15 polynomial
-        else if(crc_output[14]==1)
+        //if MSB of crc_output=1 then shift left and xor with crc polynomial
+        else if(crc_output[crc_version-1]==1)
         {
-            for(j=14;j>0;j--)
+            //xor with polynomial depending on crc_version
+            if(crc_version==15)
             {
-                if(j==14 || j==10 || j==8 || j==7 || j==4 || j==3)
-                    crc_output[j]=xor_with_1(crc_output[j-1]);
-                else
-                    crc_output[j]=crc_output[j-1];
+                for(j=crc_version-1;j>0;j--)
+                {
+                    if(j==14 || j==10 || j==8 || j==7 || j==4 || j==3)
+                        crc_output[j]=xor_with_1(crc_output[j-1]);
+                    else
+                        crc_output[j]=crc_output[j-1];
+                }
+            }
+            else if(crc_version==17)
+            {
+                for(j=crc_version-1;j>0;j--)
+                {
+                    if(j==16 || j==14 || j==13 || j==11 || j==6 || j==4 || j==3 || j==1)
+                        crc_output[j]=xor_with_1(crc_output[j-1]);
+                    else
+                        crc_output[j]=crc_output[j-1];
+                }
+            }
+            else if(crc_version==21)
+            {
+                for(j=crc_version-1;j>0;j--)
+                {
+                    if(j==20 || j==13 || j==11 || j==7 || j==4 || j==3 || j==1)
+                        crc_output[j]=xor_with_1(crc_output[j-1]);
+                    else
+                        crc_output[j]=crc_output[j-1];
+                }
             }
 
             crc_output[0]=xor_with_1(crc_input[crc_input.size()-1]);
 
             crc_input.pop_back();
         }
-        /*display
-        if((loop-i+1)<10) cout <<"0";
-        cout <<loop-i+1 <<": ";
-        print_table(crc_output);*/
     }
 
     return crc_output;
