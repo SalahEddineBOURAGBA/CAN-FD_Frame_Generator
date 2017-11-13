@@ -1,9 +1,391 @@
 #include "iostream"
 #include "vector"
+#include <algorithm>
 #include "functions.h"
 
 using namespace std;
 
+/*------------------------------------------------------------------------------
+------------------------------Analyze a given frame-----------------------------
+------------------------------------------------------------------------------*/
+
+//Analyze a given frame
+void analyse_frame(vector <unsigned int> const& frame)
+{
+    vector <unsigned int> identifier, DATA, received_stuff_count, received_CRC;
+    vector <unsigned int> crc_input, calculated_stuff_count, calculated_CRC;
+    unsigned int DLC[4];
+    unsigned int i,j,Max,IDE,BRS,ESI,data_length;
+
+
+
+//---------------------------------------------
+//-----SOF-------------------------------------
+//---------------------------------------------
+    if(frame[0]!=0)
+    {
+        cout <<"SOF error";
+        exit(EXIT_FAILURE);
+    }
+
+
+
+//---------------------------------------------
+//-----Arbitration field-----------------------
+//---------------------------------------------
+    i=1;
+    Max=11;
+    //Base identifier
+    for(j=i;j<=Max;j++)
+    {
+        //insert bit in the identifier table
+        identifier.insert(identifier.begin(),frame[j]);
+    }
+
+    //Read RRS/SRR
+    i=j;
+
+    //RRS --> basic format
+    if(frame[i]==0)
+    {
+        //move to IDE
+        i++;
+        IDE=frame[i];
+
+        //IDE must be dominant
+        if(IDE==1)
+        {
+            cout <<"Format Error: IDE must be dominant";
+            exit(EXIT_FAILURE);
+        }
+
+        //move to FDF
+        i++;
+    }
+
+    //SRR, continue arbitration field
+    else if(frame[i]==1)
+    {
+        //move to IDE
+        i++;
+        IDE=frame[i];
+
+        //IDE must be recessif
+        if(IDE==0)
+        {
+            cout <<"Form Error: IDE is recessif";
+            exit(EXIT_FAILURE);
+        }
+
+        //move to identifier extension
+        i++;
+        Max=18;
+
+        for(j=i;j<=i+Max;j++)
+        {
+            //insert bit in the identifier table
+            identifier.insert(identifier.begin(),frame[j]);
+        }
+
+        //check RRS, must be dominant
+        i=j;
+        if(frame[i]==1)
+        {
+            cout <<"Format Error: RRS must be dominant";
+            exit(EXIT_FAILURE);
+        }
+
+        //Move to FDF
+        i++;
+    }
+
+    //check FDF
+    if(frame[i]==0) //CAN
+    {
+        //code CAN
+    }
+    else if(frame[i]==1) //CAN FD
+    {
+        //Reserved bit must be dominant
+        i++;
+        if(frame[i]==1)
+        {
+            cout <<"Frame Error: Reserved bit must be dominant";
+            exit(EXIT_FAILURE);
+        }
+
+        //Move to BRS
+        i++;
+        BRS=frame[i];
+
+        //Move to ESI
+        i++;
+        ESI=frame[i];
+
+
+
+//---------------------------------------------
+//------------DLC Field------------------------
+//---------------------------------------------
+        i++;
+        for(j=0;j<4;j++)
+            DLC[j]=frame[i+3-j];
+        i+=4;
+
+        //calculate data length
+        data_length=data_length_from_dlc(DLC);
+
+
+
+
+//---------------------------------------------
+//------------Data Field-----------------------
+//---------------------------------------------
+        //data field
+        for(j=i;j<(i+(data_length*8));j++)
+        {
+           DATA.push_back(frame[j]);
+        }
+        i+=data_length*8;
+
+
+
+
+//---------------------------------------------
+//------------CRC Field------------------------
+//---------------------------------------------
+
+    //----------------------------------------
+    //Calculate the CRC of the receiving frame
+    //----------------------------------------
+
+        //Construct the sub frame to calculate it's CRC
+        for(j=0;j<i;j++)
+            crc_input.push_back(frame[j]);
+
+        //Calculate CRC
+        if(data_length<=16) //CRC 17
+            calculated_CRC=crc(crc_input,17);
+        else                //CRC 21
+            calculated_CRC=crc(crc_input,21);
+
+        //Calculate Stuff count
+        calculated_stuff_count=stuff_bit_count(crc_input);
+
+
+    //----------------------------------------
+    //Calculate the CRC of the receiving frame
+    //----------------------------------------
+
+        //Read Stuff count
+        for(j=i;j<i+4;j++)
+            received_stuff_count.push_back(frame[j]);
+        i+=4;
+
+        //Read CRC
+        if(data_length<=16) //CRC 17
+            Max=17;
+        else                //CRC 21
+            Max=21;
+
+        for(j=i;j<i+Max;j++)
+            received_CRC.push_back(frame[j]);
+        i=j;
+
+    //----------------------------------------
+    //Compare the CRC and the stuff count-----
+    //----------------------------------------
+        if(compare_two_tables(received_stuff_count,calculated_stuff_count)==0)
+        {
+            cout <<"CRC Error: Stuff count doesn't match";
+            exit(EXIT_FAILURE);
+        }
+        if(compare_two_tables(received_CRC,calculated_CRC)==0)
+        {
+            cout <<"CRC Error: CRC doesn't match";
+            exit(EXIT_FAILURE);
+        }
+
+    //----------------------------------------
+    //CRC Delimiter------CANFD----------------
+    //----------------------------------------
+        if(frame[i]==0) //First CRC Delimiter
+        {
+            cout <<"Frame Error: CRC Delimiter must be Recessif";
+            exit(EXIT_FAILURE);
+        }
+        if(frame[i+1]==1) //Second CRC Delimiter
+            i++;
+
+        //Move to ACK
+        i++;
+
+    }//end else if - CAN FD
+
+
+
+//---------------------------------------------
+//------------ACK Field------------------------
+//---------------------------------------------
+    if(frame[i]==1)
+    {
+        cout <<"No node acknowledged the frame";
+        exit(EXIT_FAILURE);
+    }
+
+    i++;
+    if(frame[i]==0)
+    {
+        cout <<"Frame Error: ACK Delimiter must be recessif";
+        exit(EXIT_FAILURE);
+    }
+
+    i++;
+
+
+
+//---------------------------------------------
+//------------EOF INTERFRAME-------------------
+//---------------------------------------------
+    for(j=i;j<i+10;j++)
+        if(frame[j]==0)
+        {
+            cout <<"EOF ERROR";
+            exit(EXIT_FAILURE);
+        }
+
+
+//---------------------------------------------
+//------------Display frame--------------------
+//---------------------------------------------
+    display_frame(identifier,DATA, received_stuff_count,received_CRC,IDE,BRS,ESI,data_length);
+}
+
+//return data length using DLC Field
+unsigned int data_length_from_dlc(unsigned int DLC[])
+{
+    if(DLC[0]==0)
+    {
+        if(DLC[1]==0)
+        {
+            if(DLC[2]==0)
+            {
+                if(DLC[3]==0)
+                    return 0;
+                else
+                    return 1;
+            }
+            else
+            {
+                if(DLC[3]==0)
+                    return 2;
+                else
+                    return 3;
+            }
+        }
+        else
+        {
+            if(DLC[2]==0)
+            {
+                if(DLC[3]==0)
+                    return 4;
+                else
+                    return 5;
+            }
+            else
+            {
+                if(DLC[3]==0)
+                    return 6;
+                else
+                    return 7;
+            }
+        }
+    }
+    else
+    {
+        if(DLC[1]==0)
+        {
+             if(DLC[2]==0)
+            {
+                if(DLC[3]==0)
+                    return 8;
+                else
+                    return 12;
+            }
+            else
+            {
+                if(DLC[3]==0)
+                    return 16;
+                else
+                    return 20;
+            }
+        }
+        else
+        {
+            if(DLC[2]==0)
+            {
+                if(DLC[3]==0)
+                    return 24;
+                else
+                    return 32;
+            }
+            else
+            {
+                if(DLC[3]==0)
+                    return 48;
+                else
+                    return 64;
+            }
+        }
+    }
+}
+
+void display_frame(vector <unsigned int> const& identifier, vector <unsigned int> const&  DATA, vector <unsigned int>
+                    const& stuff_count, vector <unsigned int> const& CRC, unsigned int IDE, unsigned int BRS,
+                    unsigned int ESI, unsigned int data_length)
+{
+    cout <<"CAN FD Frame: ";
+
+    //basic or long format
+    if(IDE==0)
+        cout <<"Basic Format.";
+    else
+        cout <<"Extended Format.";
+
+    cout <<endl <<endl;
+
+    //BRS
+    cout <<"Bit Rate Switch ";
+    if(BRS==1)
+        cout <<"Activated.";
+    else
+        cout <<"Deactivated";
+
+    cout <<endl <<endl;
+
+    //ESI
+    cout <<"Frame in: ";
+    if(ESI==0)
+        cout <<"Active Error State.";
+    else
+        cout <<"Passive Error State.";
+    cout <<endl <<endl;
+
+    //Identifier
+    cout <<"Frame Identifier: ";
+    print_table(identifier);
+
+    //Data Field
+    cout <<"Frame has " <<data_length <<" bytes data: ";
+    print_table(DATA);
+
+    //CRC Field
+    print_stuff_count(stuff_count);
+
+    cout <<"CRC Sequence: ";
+    print_table_inverted(CRC);
+
+}
 
 /*------------------------------------------------------------------------------
 --------------------------------CRC Calculation---------------------------------
@@ -152,7 +534,7 @@ vector <unsigned int> stuff_bit_count(vector <unsigned int> const& input)
 }
 
 /*-------------------------------------------------------------------------------
-----------------------------------Display----------------------------------------
+----------------------------------Table manipulation-----------------------------
 -------------------------------------------------------------------------------*/
 
 //display table
@@ -171,4 +553,31 @@ void print_table_inverted(vector <unsigned int> const& table)
         cout <<table[i] <<' ';
 
     cout <<endl <<endl;
+}
+
+//display stuff count
+void print_stuff_count(vector <unsigned int> const& table)
+{
+    cout <<"Stuff count: ";
+    cout <<table[2] <<' ';
+    cout <<table[1] <<' ';
+    cout <<table[0] <<' ';
+
+    cout <<", Parity: ";
+    cout <<table[3];
+
+    cout <<endl <<endl;
+}
+
+//compare 2 tables
+unsigned int compare_two_tables(vector <unsigned int> const& table1,vector <unsigned int> const& table2)
+{
+    if(table1.size() != table2.size())
+        return 0;
+
+    for(unsigned int j=0;j<table1.size();j++)
+        if(table1[j] != table2[j])
+            return 0;
+
+    return 1;
 }
