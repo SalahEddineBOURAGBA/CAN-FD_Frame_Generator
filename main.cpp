@@ -8,7 +8,7 @@ int main()
     //Only CAN FD frames, no CAN frames
 
     //Tampon frame from SOF to last Data bit
-    vector <unsigned int> frame {0,0,0,0,1,1,0,0,1,1,1,0,0,0,1,0,0,1,1,0,0,0,1,0,0,1,1,1,0,1};
+    vector <unsigned int> frame {0,0,0,0,0,1,0,0,1,1,1,1,1,0,0,0,1,0,1,1,1,0,0,0,0,0,1,0,1,1,1,0,1};
     //Tampon frame from CRC delimiter to last interframe bit
     vector <unsigned int> frame2 {1,0,1,1,1,1,1,1,1,1,1,1,1};
     //stuff count and CRC
