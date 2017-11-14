@@ -9,7 +9,7 @@
 ------------------------------Analyze a given frame-----------------------------
 ------------------------------------------------------------------------------*/
 void analyse_frame(std::vector <unsigned int> const& frame);
-unsigned int data_length_from_dlc(unsigned int DLC[]);
+unsigned int data_length_from_dlc(std::vector <unsigned int> CRC);
 void display_frame(std::vector <unsigned int> const& identifier, std::vector <unsigned int> const& ,
                    std::vector <unsigned int> const& stuff_count, std::vector <unsigned int> const& CRC,
                    unsigned int IDE, unsigned int BRS, unsigned int ESI, unsigned int data_length);
