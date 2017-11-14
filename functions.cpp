@@ -12,17 +12,18 @@ using namespace std;
 //Analyze a given frame
 void analyse_frame(vector <unsigned int> const& frame)
 {
-    vector <unsigned int> identifier, DATA, received_stuff_count, received_CRC;
+    vector <unsigned int> identifier, DLC, DATA, received_stuff_count, received_CRC;
     vector <unsigned int> crc_input, calculated_stuff_count, calculated_CRC;
-    unsigned int DLC[4];
-    unsigned int i,j,Max,IDE,BRS,ESI,data_length;
+    unsigned int i, j, k(1), Max, stuff(0);
+    unsigned int RRS, IDE, FDF, BRS, ESI, data_length;
 
 
 
 //---------------------------------------------
 //-----SOF-------------------------------------
 //---------------------------------------------
-    if(frame[0]!=0)
+    i=0;
+    if(frame[i]!=0)
     {
         cout <<"SOF error";
         exit(EXIT_FAILURE);
@@ -33,24 +34,64 @@ void analyse_frame(vector <unsigned int> const& frame)
 //---------------------------------------------
 //-----Arbitration field-----------------------
 //---------------------------------------------
-    i=1;
+    i++;
     Max=11;
     //Base identifier
     for(j=i;j<=Max;j++)
     {
+        //Stuff bits count
+        if(frame[j]==frame[j-1])
+            k++;
+        else
+            k=1;
+
         //insert bit in the identifier table
         identifier.insert(identifier.begin(),frame[j]);
+
+        //If 5 successive bits then jump bit
+        if(k==5)
+        {
+            stuff++;
+            Max++;
+            k=1;
+            j++;
+        }
+
     }
 
     //Read RRS/SRR
     i=j;
+    RRS=frame[i];
+
+        //Stuff bits count
+        if(frame[i]==frame[i-1])
+            k++;
+        else
+            k=1;
+        if(k==5)
+        {
+            stuff++;
+            k=1;
+            i++;
+        }
 
     //RRS --> basic format
-    if(frame[i]==0)
+    if(RRS==0)
     {
         //move to IDE
         i++;
         IDE=frame[i];
+            //Stuff bits count
+            if(frame[i]==frame[i-1])
+                k++;
+            else
+                k=1;
+            if(k==5)
+            {
+                stuff++;
+                k=1;
+                i++;
+            }
 
         //IDE must be dominant
         if(IDE==1)
@@ -64,11 +105,22 @@ void analyse_frame(vector <unsigned int> const& frame)
     }
 
     //SRR, continue arbitration field
-    else if(frame[i]==1)
+    else if(RRS==1)
     {
         //move to IDE
         i++;
         IDE=frame[i];
+            //Stuff bits count
+            if(frame[i]==frame[i-1])
+                k++;
+            else
+                k=1;
+            if(k==5)
+            {
+                stuff++;
+                k=1;
+                i++;
+            }
 
         //IDE must be recessif
         if(IDE==0)
@@ -83,13 +135,42 @@ void analyse_frame(vector <unsigned int> const& frame)
 
         for(j=i;j<=i+Max;j++)
         {
+            //Stuff bits count
+            if(frame[j]==frame[j-1])
+                k++;
+            else
+                k=1;
+
             //insert bit in the identifier table
             identifier.insert(identifier.begin(),frame[j]);
+
+            //Stuff bits count
+            if(k==5)
+            {
+                stuff++;
+                k=1;
+                Max++;
+                j++;
+            }
         }
 
         //check RRS, must be dominant
         i=j;
-        if(frame[i]==1)
+        unsigned int RRS2=frame[i];
+
+            //Stuff bits count
+            if(frame[i]==frame[i-1])
+                k++;
+            else
+                k=1;
+            if(k==5)
+            {
+                stuff++;
+                k=1;
+                i++;
+            }
+
+        if(RRS2==1)
         {
             cout <<"Format Error: RRS must be dominant";
             exit(EXIT_FAILURE);
@@ -99,12 +180,25 @@ void analyse_frame(vector <unsigned int> const& frame)
         i++;
     }
 
+    FDF=frame[i];
+        //Stuff bits count
+        if(frame[i]==frame[i-1])
+            k++;
+        else
+            k=1;
+        if(k==5)
+        {
+            stuff++;
+            k=1;
+            i++;
+        }
+
     //check FDF
-    if(frame[i]==0) //CAN
+    if(FDF==0) //CAN
     {
         //code CAN
     }
-    else if(frame[i]==1) //CAN FD
+    else if(FDF==1) //CAN FD
     {
         //Reserved bit must be dominant
         i++;
@@ -113,14 +207,47 @@ void analyse_frame(vector <unsigned int> const& frame)
             cout <<"Frame Error: Reserved bit must be dominant";
             exit(EXIT_FAILURE);
         }
+            //Stuff bits count
+            if(frame[i]==frame[i-1])
+                k++;
+            else
+                k=1;
+            if(k==5)
+            {
+                stuff++;
+                k=1;
+                i++;
+            }
 
         //Move to BRS
         i++;
         BRS=frame[i];
+            //Stuff bits count
+            if(frame[i]==frame[i-1])
+                k++;
+            else
+                k=1;
+            if(k==5)
+            {
+                stuff++;
+                k=1;
+                i++;
+            }
 
         //Move to ESI
         i++;
         ESI=frame[i];
+            //Stuff bits count
+            if(frame[i]==frame[i-1])
+                k++;
+            else
+                k=1;
+            if(k==5)
+            {
+                stuff++;
+                k=1;
+                i++;
+            }
 
 
 
@@ -128,9 +255,28 @@ void analyse_frame(vector <unsigned int> const& frame)
 //------------DLC Field------------------------
 //---------------------------------------------
         i++;
-        for(j=0;j<4;j++)
-            DLC[j]=frame[i+3-j];
-        i+=4;
+        Max=i+3;
+
+        for(j=i;j<=Max;j++)
+        {
+            //Stuff bits count
+            if(frame[j]==frame[j-1])
+                k++;
+            else
+                k=1;
+
+            //DLC stoked inverted
+            DLC.insert(DLC.begin(),frame[j]);
+
+            //Stuff bits count
+            if(k==5)
+            {
+                stuff++;
+                k=1;
+                Max++;
+                j++;
+            }
+        }
 
         //calculate data length
         data_length=data_length_from_dlc(DLC);
@@ -142,11 +288,29 @@ void analyse_frame(vector <unsigned int> const& frame)
 //------------Data Field-----------------------
 //---------------------------------------------
         //data field
-        for(j=i;j<(i+(data_length*8));j++)
+        i=j;
+        Max=i+(data_length*8);
+
+        for(j=i;j<Max;j++)
         {
-           DATA.push_back(frame[j]);
+            //Stuff bits count
+            if(frame[j]==frame[j-1])
+                k++;
+            else
+                k=1;
+
+            DATA.push_back(frame[j]);
+
+            //Stuff bits count
+            if(k==5)
+            {
+                stuff++;
+                k=1;
+                Max++;
+                j++;
+            }
         }
-        i+=data_length*8;
+        i=j;
 
 
 
@@ -262,7 +426,7 @@ void analyse_frame(vector <unsigned int> const& frame)
 }
 
 //return data length using DLC Field
-unsigned int data_length_from_dlc(unsigned int DLC[])
+unsigned int data_length_from_dlc(vector <unsigned int> DLC)
 {
     if(DLC[0]==0)
     {
@@ -500,6 +664,7 @@ vector <unsigned int> stuff_bit_count(vector <unsigned int> const& input)
         }
     }
     stuff%=8;
+
 
     //return stuff count as follows
     //bit2 bit1 bit0 parity
