@@ -18,7 +18,6 @@ void analyse_frame(vector <unsigned int> const& frame)
     unsigned int RRS, IDE, FDF, BRS, ESI, data_length;
 
 
-
 //---------------------------------------------
 //-----SOF-------------------------------------
 //---------------------------------------------
@@ -304,10 +303,15 @@ void analyse_frame(vector <unsigned int> const& frame)
             //Stuff bits count
             if(k==5)
             {
-                stuff++;
-                k=1;
-                Max++;
-                j++;
+                //Check if the last bit of the data field is a stuff bit
+                //and exclude it from the stuff calculation
+                if(j!=Max-1)
+                {
+                    stuff++;
+                    k=1;
+                    Max++;
+                    j++;
+                }
             }
         }
         i=j;
@@ -319,9 +323,13 @@ void analyse_frame(vector <unsigned int> const& frame)
 //------------CRC Field------------------------
 //---------------------------------------------
 
+    //-----------------------------------------
+    //Calculate the CRC and the stuff bit count
+    //of the receiving frame
     //----------------------------------------
-    //Calculate the CRC of the receiving frame
-    //----------------------------------------
+
+        //Calculate Stuff count
+        calculated_stuff_count=stuff_bit_count(stuff);
 
         //Construct the sub frame to calculate it's CRC
         for(j=0;j<i;j++)
@@ -333,27 +341,32 @@ void analyse_frame(vector <unsigned int> const& frame)
         else                //CRC 21
             calculated_CRC=crc(crc_input,21);
 
-        //Calculate Stuff count
-        calculated_stuff_count=stuff_bit_count(crc_input);
-
 
     //----------------------------------------
-    //Calculate the CRC of the receiving frame
+    //Read the CRC and the stuff bit count
+    //of the receiving frame
     //----------------------------------------
+        //Jump first fixed stuff bit
+        i++;
 
         //Read Stuff count
         for(j=i;j<i+4;j++)
             received_stuff_count.push_back(frame[j]);
-        i+=4;
+        i=j; //2nd stuff bit
 
         //Read CRC
-        if(data_length<=16) //CRC 17
-            Max=17;
-        else                //CRC 21
-            Max=21;
+        if(data_length<=16) //CRC 17, 5 fixed stuff bits
+            Max=i+17+5;
+        else                //CRC 21, 6 fixed stuff bits
+            Max=i+21+6;
 
-        for(j=i;j<i+Max;j++)
-            received_CRC.push_back(frame[j]);
+
+        for(j=i;j<Max;j++)
+        {
+            //jump fixed stuff bits
+            if((j-i)%5!=0)
+                received_CRC.push_back(frame[j]);
+        }
         i=j;
 
     //----------------------------------------
@@ -400,7 +413,7 @@ void analyse_frame(vector <unsigned int> const& frame)
     i++;
     if(frame[i]==0)
     {
-        cout <<"Frame Error: ACK Delimiter must be recessif";
+        cout <<"Frame Error: ACK Delimiter must be recessive";
         exit(EXIT_FAILURE);
     }
 
@@ -644,27 +657,11 @@ unsigned int xor_with_1(const unsigned int a)
 }
 
 //calculate stuff count of a dynamic stuffed sub frame
-vector <unsigned int> stuff_bit_count(vector <unsigned int> const& input)
+vector <unsigned int> stuff_bit_count(unsigned int stuff)
 {
     vector <unsigned int> output(4);
-    unsigned int i,k(1),stuff(0);
 
-    for(i=0;i<input.size()-1;i++)
-    {
-        if(input[i]==input[i+1])
-            k++;
-        else
-            k=1;
-
-        if(k==5)
-        {
-            stuff++;
-            k=1;
-            i++;
-        }
-    }
     stuff%=8;
-
 
     //return stuff count as follows
     //bit2 bit1 bit0 parity
