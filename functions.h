@@ -19,7 +19,7 @@ void display_frame(std::vector <unsigned int> const& identifier, std::vector <un
 ------------------------------------------------------------------------------*/
 std::vector <unsigned int> crc(std::vector <unsigned int> const& input,const unsigned int crc_version);
 unsigned int xor_with_1(const unsigned int a);
-std::vector <unsigned int> stuff_bit_count(std::vector <unsigned int> const& input);
+std::vector <unsigned int> stuff_bit_count(unsigned int stuff);
 
 /*-------------------------------------------------------------------------------
 ----------------------------------Table manipulation-----------------------------
