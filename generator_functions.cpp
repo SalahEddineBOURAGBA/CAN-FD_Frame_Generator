@@ -14,7 +14,7 @@ vector <bool> generate_frame()
     gettimeofday(&time,NULL);
     srand((time.tv_sec * 1000) + (time.tv_usec));
 
-    //generate 3 random values
+    //generate random values for FDF IDE BRS ESI
     FDF=((rand()%100)>50)?1:0;
     IDE=((rand()%100)>50)?1:0;
     BRS=((rand()%100)>50)?1:0;
@@ -59,43 +59,46 @@ vector <bool> generate_frame()
     }
 
     for(i=0;i<4;i++)
-            DLC.push_back(0);
+            DLC.push_back(((rand()%100)>50)?1:0);
     frame.insert(frame.end(),DLC.begin(),DLC.end());
 
     //DATA Field
     length=data_length_from_dlc(DLC);
-    if(FDF==0)
+    if(FDF==0) //CAN
         if(length>8)
             length=8;
     DLC.clear();
 
-
     for(i=0;i<length*8;i++)
             frame.push_back(((rand()%100)>50)?1:0);
 
-    if(FDF==0)
+    //CRC Field
+    if(FDF==0) //CAN
     {
-       CRC=crc(frame,15);
-       frame.insert(frame.end(),CRC.begin(),CRC.end());
-       CRC.clear();
+        //In CAN calculate CRC then stuff frame
+        CRC=crc(frame,15);
+        frame.insert(frame.end(),CRC.begin(),CRC.end());
+        CRC.clear();
 
-       stuff_frame(frame,1);
+        //the second parameter is '1' to stuff the hole frame
+        stuff_frame(frame,1);
     }
 
-    else if (FDF==1)
+    else if (FDF==1) //CAN FD
     {
-        //Sub frame Stuffing
+        //Stuff the frame before calculating CRC and return stuff count
+        //the second parameter is '0' to stuff the hole frame except the last 5 bits
         nbr_stuff_bits=stuff_frame(frame,0);
 
-        //CRC
+        //Stuff count
         stuff_count=stuff_bit_count(nbr_stuff_bits);
-
+        //CRC
         if(length<17)
             CRC=crc(frame,17);
         else
             CRC=crc(frame,21);
 
-        //stuff CRC
+        //Fixed stuffed CRC Field
         stuffed_crc=stuff_crc(stuff_count,CRC,frame[frame.size()-1]);
         //add fixed stuffed CRC to the frame
         frame.insert(frame.end(),stuffed_crc.begin(),stuffed_crc.end());
@@ -123,6 +126,8 @@ unsigned int stuff_frame(vector <bool>& frame, bool can)
     unsigned int k(1), nbr_stuff_bits(0);
     vector <bool>::iterator it;
 
+    //In CAN FD don't stuff the last 5 consecutive bits
+    //that ends at the end of the frame
     for(it=frame.begin()+1;it<frame.end()-1;it++)
     {
         if(*it==*(it-1))
@@ -140,6 +145,8 @@ unsigned int stuff_frame(vector <bool>& frame, bool can)
             k=1;
     }
 
+    //Take in consideration the last 5 bits in CAN
+    //There is no fixed stuffing
     if(can)
     {
         if(*it==*(it-1))
@@ -162,12 +169,16 @@ vector <bool> stuff_crc(vector <bool> const& stuff_count, vector <bool> const& c
     unsigned int i(0);
     vector<bool>::iterator it;
 
-    output.push_back(!first_bit);//1st fixed stuff bit
+    //1st fixed stuff bit
+    output.push_back(!first_bit);
+    //Stuff count
     output.insert(output.end(),stuff_count.begin(),stuff_count.end());
-    output.push_back(!output[output.size()-1]);//2nd fixed stuff bit
+    //2nd fixed stuff bit
+    output.push_back(!output[output.size()-1]);
+    //Add the CRC and stuff it after
     output.insert(output.end(),crc.begin(),crc.end());
 
-    //stuff CRC field in output
+    //Fixed stuff CRC
     for(it=output.begin()+6;it<output.end();it++)
     {
         i++;
