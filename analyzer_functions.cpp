@@ -7,7 +7,7 @@ using namespace std;
 ------------------------------------------------------------------------------*/
 
 //Analyze a given frame
-bool analyse_frame(vector <bool> const& frame)
+bool analyze_frame(vector <bool> const& frame)
 {
     vector <bool> identifier, DLC, DATA, received_stuff_count, received_CRC;
     vector <bool> crc_input, calculated_stuff_count, calculated_CRC;
@@ -327,8 +327,6 @@ bool analyse_frame(vector <bool> const& frame)
         i=j;
 
 
-/*print_table(DLC);
-cout<<data_length<<endl;*/
 
 //---------------------------------------------
 //------------Data Field-----------------------
@@ -383,8 +381,6 @@ cout<<data_length<<endl;*/
         }
 
 
-/*print_table(DATA);
-cout<<frame[i]<<endl;*/
 
 //---------------------------------------------
 //------------CRC Field------------------------
@@ -420,7 +416,7 @@ cout<<frame[i]<<endl;*/
     //Read the CRC and the stuff bit count
     //of the receiving frame
     //----------------------------------------
-        if(FDF==1)//can fd
+        if(FDF==1)//CAN FD
         {
             //Jump first fixed stuff bit
             i++;
@@ -469,10 +465,7 @@ cout<<frame[i]<<endl;*/
             }
             i=j;
         }
-/*print_table(identifier);
-print_table(DLC);
-print_table_inverted(received_CRC);
-print_table_inverted(calculated_CRC);*/
+
 
     //----------------------------------------
     //Compare the CRC and the stuff count-----
@@ -482,11 +475,6 @@ print_table_inverted(calculated_CRC);*/
             if(compare_two_tables(received_stuff_count,calculated_stuff_count)==0)
             {
                 print_table(frame);
-                print_table(received_stuff_count);
-                print_table(calculated_stuff_count);
-                print_table(received_CRC);
-
-                print_table(calculated_CRC);
                 cout <<"CRC Error: Stuff count doesn't match" <<endl <<endl;
                 return 0;
             }
@@ -494,12 +482,6 @@ print_table_inverted(calculated_CRC);*/
         if(compare_two_tables(received_CRC,calculated_CRC)==0)
         {
             print_table(frame);
-            print_table(identifier);
-print_table(DLC);
-print_table(crc_input);
-print_table(unstuff_frame(crc_input));
-print_table_inverted(received_CRC);
-print_table_inverted(calculated_CRC);
             cout <<FDF<<"CRC Error: CRC doesn't match" <<endl <<endl;
             return 0;
         }
@@ -562,8 +544,9 @@ print_table_inverted(calculated_CRC);
 //---------------------------------------------
     display_analyzed_frame(identifier, DLC, DATA, received_stuff_count,received_CRC,IDE,FDF,BRS,ESI);
 
-//-----------------------------------
-//--------------Free-----------------
+//---------------------------------------------
+//------------------Free-----------------------
+//---------------------------------------------
 identifier.clear();DLC.clear();DATA.clear();received_stuff_count.clear();received_CRC.clear();
 crc_input.clear();calculated_stuff_count.clear();calculated_CRC.clear();
 
@@ -761,9 +744,11 @@ vector <bool> stuff_bit_count(const unsigned int stuff)
         output={0,0,1,1};
         break;
     }
+
     return output;
 }
 
+//For CAN, CRC calculation is used on unstuffed frame
 vector <bool> unstuff_frame(vector <bool> const& input)
 {
     vector <bool> frame=input;
@@ -783,7 +768,6 @@ vector <bool> unstuff_frame(vector <bool> const& input)
                 frame.erase(it+1);
                 it++;
             }
-
         }
         else
             k=1;
