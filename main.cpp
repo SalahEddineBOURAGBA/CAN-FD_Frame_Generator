@@ -8,23 +8,25 @@ int main()
     //Only CAN FD frames, no CAN frames
 
     //Tampon frame from SOF to last Data bit
-    vector <unsigned int> frame {0,0,0,0,1,1,0,0,1,1,1,0,0,0,1,0,0,1,1,0,0,0,1,0,0,1,1,1,0,1};
+    vector <unsigned int> frame {0, 0,0,0,0,1,0,0,1,1,1,1,1,0,0, 0,1,0,1,1,1,0,0,0, 0,0,1,0,1,1,1,1,1};
+    //Tampon frame from 1st fixed stuff bit to last CRC bit
+    vector <unsigned int> frame2 {0,0,1,0,1,0,1,1,1,1,0,0,1,1,0,1,0,1,1,1,0,1,1,1,1,0,0};
     //Tampon frame from CRC delimiter to last interframe bit
-    vector <unsigned int> frame2 {1,0,1,1,1,1,1,1,1,1,1,1,1};
-    //stuff count and CRC
-    vector <unsigned int> crc_output,stuff_count;
-
-    //Calculate stuff count and CRC
-    stuff_count=stuff_bit_count(frame);
-    crc_output=crc(frame,17);
-
+    vector <unsigned int> frame3 {1,0,1,1,1,1,1,1,1,1,1,1,1};
     //Complete frame
-    frame.insert(frame.end(),stuff_count.begin(),stuff_count.end());
-    frame.insert(frame.end(),crc_output.begin(),crc_output.end());
-    frame.insert(frame.end(),frame2.begin(),frame.end());
+    frame.insert(frame.end(),frame2.begin(),frame2.end());
+    frame.insert(frame.end(),frame3.begin(),frame3.end());
+
 
     //Analyse frame
     analyse_frame(frame);
+
+    /*
+    vector <unsigned int> crc_output,stuff_count;
+    stuff_count=stuff_bit_count(3);
+    crc_output=crc(frame,17);
+    print_table(stuff_count);
+    print_table(crc_output);*/
 
     return 0;
 }
