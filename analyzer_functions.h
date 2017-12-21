@@ -9,7 +9,7 @@
 ------------------------------Analyze a given frame-----------------------------
 ------------------------------------------------------------------------------*/
 
-bool analyse_frame(std::vector <bool> const& frame);
+bool analyze_frame(std::vector <bool> const& frame);
 void display_analyzed_frame(std::vector <bool> const& identifier, std::vector <bool> const&  DLC,
                             std::vector <bool> const&  DATA, std::vector <bool> const& stuff_count,
                             std::vector <bool> const& CRC, const bool IDE, const bool FDF, const bool BRS, const bool ESI);
