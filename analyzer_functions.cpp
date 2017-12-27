@@ -11,20 +11,27 @@ bool analyze_frame(vector <bool> const& frame)
 {
     vector <bool> identifier, DLC, DATA, received_stuff_count, received_CRC;
     vector <bool> crc_input, calculated_stuff_count, calculated_CRC;
-    unsigned int i, j, k(1), Max, stuff(0), data_length;
-    bool SRR, RTR, IDE, FDF, BRS, ESI;
+    unsigned int i, j, k(1), Max, stuff(0), data_length, index;
+    bool SRR, RTR, RRS, IDE, FDF, BRS, ESI;
 
-
+    cout <<"Frame: ";
+    print_table(frame);
 //---------------------------------------------
 //-----SOF-------------------------------------
 //---------------------------------------------
     i=0;
-    if(frame[i]!=0)
+    if(frame[i]==1)
     {
-        print_table(frame);
         cout <<"SOF error" <<endl <<endl;
         return 0;
     }
+    else
+    {
+        cout <<setw(8) <<"SOF"
+             <<" 0 "
+             <<"SOF" <<endl<<endl;
+    }
+
 
 
 
@@ -33,7 +40,7 @@ bool analyze_frame(vector <bool> const& frame)
 //---------------------------------------------
     i++;
     Max=11;
-    //Base identifier
+    index=28;
     for(j=i;j<=Max;j++)
     {
         //Stuff bits count
@@ -44,40 +51,90 @@ bool analyze_frame(vector <bool> const& frame)
 
         //insert bit in the identifier table
         identifier.insert(identifier.begin(),frame[j]);
+        //display
+        cout <<setw(6) <<"ID" <<index
+            <<" " <<frame[j]
+            <<" IDENTIFIER" <<endl;
 
         //If 5 successive bits then jump bit
         if(k==5)
         {
+            //display
+            cout <<setw(8) <<"S"
+                <<" " <<frame[j+1]
+                <<" IDENTIFIER" <<endl;
+
             stuff++;
             Max++;
             k=1;
             j++;
         }
-
+        index--;
     }
 
-    //Read SRR/RTR
+    //Read RTR or SRR
     i=j;
-    SRR=frame[i];
-
+    RTR=frame[i];
         //Stuff bits count
         if(frame[i]==frame[i-1])
             k++;
         else
             k=1;
+        if(k!=5)
+        {
+            IDE=frame[i+1];
+            if(IDE==0) //Basic Identifier
+            {
+                //display
+                cout <<setw(8) <<"RTR"
+                    <<" " <<RTR
+                    <<" IDENTIFIER" <<endl;
+                i++; //Move to Control Field
+            }
+            else if(IDE==1) //extended Identifier
+            {
+                SRR=frame[i];
+                //display
+                cout <<setw(8) <<"SRR"
+                    <<" " <<SRR
+                    <<" IDENTIFIER" <<endl;
+                i++; //Move to IDE
+            }
+        }
         if(k==5)
         {
+            IDE=frame[i+2];
+            if(IDE==0) //Basic Identifier
+            {
+                //display
+                cout <<setw(8) <<"RTR"
+                    <<" " <<RTR
+                    <<" IDENTIFIER" <<endl;
+            }
+            else if(IDE==1) //extended Identifier
+            {
+                SRR=frame[i];
+                //display
+                cout <<setw(8) <<"SRR"
+                    <<" " <<SRR
+                    <<" IDENTIFIER" <<endl;
+            }
+            //display
+            cout <<setw(8) <<"S"
+                <<" " <<frame[i+1]
+                <<" IDENTIFIER" <<endl;
             stuff++;
             k=1;
-            i++;
+            i+=2; //move to IDE or control Field
         }
 
-    //SRR --> basic format
-    if(SRR==0)
+    if(IDE==1) //Extended Identifier
     {
-        //move to IDE
-        i++;
         IDE=frame[i];
+            //display
+            cout <<setw(8) <<"IDE"
+                <<" " <<IDE
+                <<" IDENTIFIER" <<endl;
             //Stuff bits count
             if(frame[i]==frame[i-1])
                 k++;
@@ -85,53 +142,25 @@ bool analyze_frame(vector <bool> const& frame)
                 k=1;
             if(k==5)
             {
+                //display
+                cout <<setw(8) <<"S"
+                        <<" " <<frame[i+1]
+                        <<" IDENTIFIER" <<endl;
                 stuff++;
                 k=1;
                 i++;
             }
-
-        //IDE must be dominant
-        if(IDE==1)
-        {
-            print_table(frame);
-            cout <<"Format Error: IDE must be dominant" <<endl <<endl;
-            return 0;
-        }
-
-        //move to FDF
-        i++;
-    }
-
-    //SRR, continue arbitration field
-    else if(SRR==1)
-    {
-        //move to IDE
-        i++;
-        IDE=frame[i];
-            //Stuff bits count
-            if(frame[i]==frame[i-1])
-                k++;
-            else
-                k=1;
-            if(k==5)
+            //IDE must be recessive
+            if(IDE==0)
             {
-                stuff++;
-                k=1;
-                i++;
+                cout <<"Form Error: IDE must be recessive" <<endl <<endl;
+                return 0;
             }
-
-        //IDE must be recessif
-        if(IDE==0)
-        {
-            print_table(frame);
-            cout <<"Form Error: IDE is recessif" <<endl <<endl;
-            return 0;
-        }
 
         //move to identifier extension
         i++;
         Max=18;
-
+        index=17;
         for(j=i;j<i+Max;j++)
         {
             //Stuff bits count
@@ -142,45 +171,91 @@ bool analyze_frame(vector <bool> const& frame)
 
             //insert bit in the identifier table
             identifier.insert(identifier.begin(),frame[j]);
+            //display
+            if(index>=10)
+                cout <<setw(6) <<"ID" <<index;
+            else if(index<10)
+                cout <<setw(7) <<"ID0" <<index;
+            cout <<" " <<frame[j]
+                 <<" IDENTIFIER" <<endl;
 
             //Stuff bits count
             if(k==5)
             {
+                //display
+                cout <<setw(8) <<"S"
+                        <<" " <<frame[j+1]
+                        <<" IDENTIFIER" <<endl;
                 stuff++;
                 k=1;
                 Max++;
                 j++;
             }
+            index--;
         }
 
-        //check RTR, must be dominant (in can for now dominant also)
+        //Read RTR/RRS
         i=j;
-        RTR=frame[i];
-
-            //Stuff bits count
-            if(frame[i]==frame[i-1])
-                k++;
-            else
-                k=1;
-            if(k==5)
-            {
-                stuff++;
-                k=1;
-                i++;
-            }
-
-        if(RTR==1)
+        if(IDE==0) //CAN
         {
-            print_table(frame);
-            cout <<"Format Error: RRS must be dominant" <<endl <<endl;
-            return 0;
+            RTR=frame[i];
+                //display
+                cout <<setw(8) <<"RTR"
+                     <<" " <<frame[i]
+                     <<" IDENTIFIER" <<endl;
+                //Stuff bits count
+                if(frame[i]==frame[i-1])
+                    k++;
+                else
+                    k=1;
+                if(k==5)
+                {
+                    //display
+                    cout <<setw(8) <<"S"
+                            <<" " <<frame[i+1]
+                            <<" IDENTIFIER" <<endl;
+                    stuff++;
+                    k=1;
+                    i++;
+                }
         }
-
-        //Move to FDF or R1
-        i++;
-
-        if(frame[i]==0) //check R1 in CAN
+        else if(IDE==1) //CAN FD
         {
+            RRS=frame[i];RTR=frame[i];
+                //display
+                cout <<setw(8) <<"RRS"
+                     <<" " <<frame[i]
+                     <<" IDENTIFIER" <<endl;
+                //Stuff bits count
+                if(frame[i]==frame[i-1])
+                    k++;
+                else
+                    k=1;
+                if(k==5)
+                {
+                    //display
+                    cout <<setw(8) <<"S"
+                         <<" " <<frame[i+1]
+                         <<" IDENTIFIER" <<endl;
+                    stuff++;
+                    k=1;
+                    i++;
+                }
+        }
+        i++; //Move to Control Field
+    }
+    cout <<endl;
+
+
+//---------------------------------------------
+//-----Control field-----------------------
+//---------------------------------------------
+    if(IDE==0) //basic
+    {
+        //display
+        cout <<setw(8) <<"IDE"
+             <<" " <<IDE
+             <<" CONTROL" <<endl;
             //Stuff bits count
             if(frame[i]==frame[i-1])
                 k++;
@@ -188,19 +263,56 @@ bool analyze_frame(vector <bool> const& frame)
                 k=1;
             if(k==5)
             {
+                //display
+                cout <<setw(8) <<"S"
+                     <<" " <<frame[i+1]
+                     <<" CONTROL" <<endl;
                 stuff++;
                 k=1;
                 i++;
             }
+            //IDE must be dominant
+            if(IDE==1)
+            {
+                cout <<"Format Error: IDE must be dominant" <<endl <<endl;
+                return 0;
+            }
+
         //move to FDF
         i++;
+    }
+    else if(IDE==1) //extended
+    {
+        if(frame[i]==0) //R1 CAN
+        {
+            cout <<setw(8) <<"R1"
+                 <<" 0"
+                 <<" CONTROL" <<endl;
+                //Stuff bits count
+                if(frame[i]==frame[i-1])
+                    k++;
+                else
+                    k=1;
+                if(k==5)
+                {
+                    //display
+                    cout <<setw(8) <<"S"
+                        <<" " <<frame[i+1]
+                        <<" CONTROL" <<endl;
+                    stuff++;
+                    k=1;
+                    i++;
+                }
+            i++; //Move to FDF
         }
-
-        //Move to FDF
-//        i++;
     }
 
+    //FDF
     FDF=frame[i];
+        //display
+        cout <<setw(8) <<"FDF"
+             <<" " <<FDF
+             <<" CONTROL" <<endl;
         //Stuff bits count
         if(frame[i]==frame[i-1])
             k++;
@@ -208,24 +320,29 @@ bool analyze_frame(vector <bool> const& frame)
             k=1;
         if(k==5)
         {
+            //display
+            cout <<setw(8) <<"S"
+                 <<" " <<frame[i+1]
+                 <<" CONTROL" <<endl;
             stuff++;
             k=1;
             i++;
         }
 
-    //check FDF
     if(FDF==0) //CAN
     {
         //nothing to do move to DLC after
     }
     else if(FDF==1) //CAN FD
     {
-        //Reserved bit must be dominant
+        //R0 must be dominant
         i++;
+        cout <<setw(8) <<"R0"
+             <<" " <<frame[i]
+             <<" CONTROL" <<endl;
         if(frame[i]==1)
         {
-            print_table(frame);
-            cout <<"Frame Error: Reserved bit must be dominant" <<endl <<endl;
+            cout <<"Frame Error: R0 must be dominant" <<endl <<endl;
             return 0;
         }
             //Stuff bits count
@@ -235,6 +352,10 @@ bool analyze_frame(vector <bool> const& frame)
                 k=1;
             if(k==5)
             {
+               //display
+                cout <<setw(8) <<"S"
+                     <<" " <<frame[i+1]
+                     <<" CONTROL" <<endl;
                 stuff++;
                 k=1;
                 i++;
@@ -243,6 +364,10 @@ bool analyze_frame(vector <bool> const& frame)
         //Move to BRS
         i++;
         BRS=frame[i];
+            //display
+            cout <<setw(8) <<"BRS"
+                <<" " <<BRS
+                <<" CONTROL" <<endl;
             //Stuff bits count
             if(frame[i]==frame[i-1])
                 k++;
@@ -250,6 +375,10 @@ bool analyze_frame(vector <bool> const& frame)
                 k=1;
             if(k==5)
             {
+               //display
+                cout <<setw(8) <<"S"
+                     <<" " <<frame[i+1]
+                     <<" CONTROL" <<endl;
                 stuff++;
                 k=1;
                 i++;
@@ -258,6 +387,10 @@ bool analyze_frame(vector <bool> const& frame)
         //Move to ESI
         i++;
         ESI=frame[i];
+            //display
+            cout <<setw(8) <<"ESI"
+                <<" " <<ESI
+                <<" CONTROL" <<endl;
             //Stuff bits count
             if(frame[i]==frame[i-1])
                 k++;
@@ -265,6 +398,10 @@ bool analyze_frame(vector <bool> const& frame)
                 k=1;
             if(k==5)
             {
+               //display
+                cout <<setw(8) <<"ESI"
+                     <<" " <<ESI
+                     <<" CONTROL" <<endl;
                 stuff++;
                 k=1;
                 i++;
@@ -272,12 +409,10 @@ bool analyze_frame(vector <bool> const& frame)
     }
 
 
-
-//---------------------------------------------
-//------------DLC Field------------------------
-//---------------------------------------------
+        //DLC
         i++;
         Max=i+3;
+        index=3;
         data_length=1;
 
         for(j=i;j<=Max;j++)
@@ -290,6 +425,10 @@ bool analyze_frame(vector <bool> const& frame)
 
             //DLC stoked inverted
             DLC.push_back(frame[j]);
+            //display
+            cout <<setw(7) <<"DLC" <<index
+                <<" " <<frame[j]
+                <<" CONTROL" <<endl;
 
             //calculate data length
             if(DLC.size()==4)
@@ -307,6 +446,10 @@ bool analyze_frame(vector <bool> const& frame)
                 {
                     if(data_length!=0)//if ==0 there is no stuff bit to skip
                     {
+                       //display
+                        cout <<setw(8) <<"S"
+                             <<" " <<frame[j+1]
+                             <<" CONTROL" <<endl;
                         stuff++;
                         k=1;
                         Max++;
@@ -316,6 +459,10 @@ bool analyze_frame(vector <bool> const& frame)
 
                 else if(FDF==0)//can
                 {
+                   //display
+                    cout <<setw(8) <<"S"
+                         <<" " <<frame[j+1]
+                         <<" CONTROL" <<endl;
                     stuff++;
                     k=1;
                     Max++;
@@ -323,6 +470,7 @@ bool analyze_frame(vector <bool> const& frame)
                 }
 
             }
+            index--;
         }
         i=j;
 
@@ -335,6 +483,7 @@ bool analyze_frame(vector <bool> const& frame)
         {
             //data field
             Max=i+(data_length*8);
+            index=0;
 
             for(j=i;j<Max-1;j++)
             {
@@ -345,20 +494,34 @@ bool analyze_frame(vector <bool> const& frame)
                     k=1;
 
                 DATA.push_back(frame[j]);
+                //display
+                if((index%8)==0)
+                {
+                    cout <<endl;
+                    (index<80)?(cout <<setw(7) <<"DATA0" <<index/8 <<" "):(cout <<setw(6) <<"DATA" <<index/8 <<" ");
+                }
+                cout <<frame[j] <<" ";
+
 
                 //Stuff bits count
                 if(k==5)
                 {
+                   //display
+                    cout <<"(" <<frame[j+1] <<") ";
                     stuff++;
                     k=1;
                     Max++;
                     j++;
                 }
+                index++;
             }
             i=j;
 
-            if(FDF==1)
+            if(FDF==1) //CAN FD
+            {
                 DATA.push_back(frame[i]);
+                cout <<frame[j] <<endl;
+            }
             else if(FDF==0)
             {
                 //Stuff bits count
@@ -368,17 +531,22 @@ bool analyze_frame(vector <bool> const& frame)
                     k=1;
 
                 DATA.push_back(frame[i]);
+                cout <<frame[j] <<" ";
 
                 //Stuff bits count
                 if(k==5)
                 {
+                    //display
+                    cout <<"(" <<frame[j+1] <<") ";
                     stuff++;
                     k=1;
                     i++;
                 }
+                cout <<endl;
             }
             i++;//move to CRC
         }
+        cout <<endl;
 
 
 
@@ -396,10 +564,10 @@ bool analyze_frame(vector <bool> const& frame)
             crc_input.push_back(frame[j]);
 
         //Calculate CRC
-        if(FDF==0)
+        if(FDF==0) //CAN
             calculated_CRC=crc(unstuff_frame(crc_input),15);
 
-        else if (FDF==1)
+        else if (FDF==1) //CAN FD
         {
             //Calculate Stuff count
             calculated_stuff_count=stuff_bit_count(stuff);
@@ -418,32 +586,63 @@ bool analyze_frame(vector <bool> const& frame)
     //----------------------------------------
         if(FDF==1)//CAN FD
         {
+            //display
+            cout <<setw(8) <<"S"
+                 <<" " <<frame[i]
+                 <<" CRC" <<endl;
             //Jump first fixed stuff bit
             i++;
 
             //Read Stuff count
             for(j=i;j<i+4;j++)
+            {
                 received_stuff_count.push_back(frame[j]);
+                //display
+                (j==i+3)?(cout <<setw(8) <<"P"):(cout <<setw(7) <<"SC" <<2-(j-i));
+                cout <<" " <<frame[j]
+                     <<" CRC" <<endl;
+            }
             i=j; //2nd stuff bit
 
             //Read CRC
             if(data_length<=16) //CRC 17, 5 fixed stuff bits
+            {
                 Max=i+17+5;
+                index=16;
+            }
             else                //CRC 21, 6 fixed stuff bits
+            {
                 Max=i+21+6;
-
+                index=20;
+            }
 
             for(j=i;j<Max;j++)
             {
                 //jump fixed stuff bits after every 4 bits
                 if((j-i)%5!=0)
+                {
                     received_CRC.push_back(frame[j]);
+                    //display
+                    (index<10)?(cout <<setw(7) <<"CRC0"):(cout <<setw(6) <<"CRC");
+                    cout <<index
+                         <<" " <<frame[j]
+                         <<" CRC" <<endl;
+                    index--;
+                }
+                else
+                {
+                    //display
+                    cout <<setw(8) <<"S"
+                         <<" " <<frame[j]
+                         <<" CRC" <<endl;
+                }
             }
             i=j;
         }
         else if(FDF==0)//can
         {
             Max=i+15;
+            index=14;
             for(j=i;j<Max;j++)
             {
                 //Stuff bits count
@@ -453,15 +652,25 @@ bool analyze_frame(vector <bool> const& frame)
                     k=1;
 
                 received_CRC.push_back(frame[j]);
+                //display
+                (index<10)?(cout <<setw(7) <<"CRC0"):(cout <<setw(6) <<"CRC");
+                cout <<index
+                <<" " <<frame[j]
+                <<" CRC" <<endl;
 
                 //Stuff bits count
                 if(k==5)
                 {
+                    //display
+                    cout <<setw(8) <<"S"
+                         <<" " <<frame[j+1]
+                         <<" CRC" <<endl;
                     stuff++;
                     k=1;
                     Max++;
                     j++;
                 }
+                index--;
             }
             i=j;
         }
@@ -474,14 +683,12 @@ bool analyze_frame(vector <bool> const& frame)
         {
             if(compare_two_tables(received_stuff_count,calculated_stuff_count)==0)
             {
-                print_table(frame);
                 cout <<"CRC Error: Stuff count doesn't match" <<endl <<endl;
                 return 0;
             }
         }
         if(compare_two_tables(received_CRC,calculated_CRC)==0)
         {
-            print_table(frame);
             cout <<FDF<<"CRC Error: CRC doesn't match" <<endl <<endl;
             return 0;
         }
@@ -489,60 +696,90 @@ bool analyze_frame(vector <bool> const& frame)
     //----------------------------------------
     //CRC Delimiter------CANFD----------------
     //----------------------------------------
+       //display
+       cout <<setw(8) <<"CRC DEL"
+            <<" " <<frame[i]
+            <<" CRC" <<endl;
         if(frame[i]==0) //First CRC Delimiter
         {
-            print_table(frame);
             cout <<"Frame Error: CRC Delimiter must be Recessif" <<endl <<endl;
             return 0;
         }
         if(frame[i+1]==1) //Second CRC Delimiter
+        {
             i++;
+            //display
+           cout <<setw(8) <<"CRC DEL"
+                <<" " <<frame[i]
+                <<" CRC" <<endl;
+        }
 
         //Move to ACK
         i++;
+        cout <<endl;
 
-    //}//end else if - CAN FD
 
 
 
 //---------------------------------------------
 //------------ACK Field------------------------
 //---------------------------------------------
+    //display
+    cout <<setw(8) <<"ACK SLOT"
+         <<" " <<frame[i]
+         <<" ACK" <<endl;
     if(frame[i]==1)
     {
-        print_table(frame);
         cout <<"No node acknowledged the frame" <<endl <<endl;
         return 0;
     }
 
     i++;
+    //display
+    cout <<setw(8) <<"ACK DEL"
+         <<" " <<frame[i]
+         <<" ACK" <<endl;
     if(frame[i]==0)
     {
-        print_table(frame);
         cout <<"Frame Error: ACK Delimiter must be recessive" <<endl <<endl;
         return 0;
     }
 
     i++;
+    cout <<endl;
 
 
 
 //---------------------------------------------
 //------------EOF INTERFRAME-------------------
 //---------------------------------------------
+    cout <<setw(8) <<"EOF";
     for(j=i;j<i+10;j++)
+    {
+        //display
+        cout <<" " <<frame[i];
         if(frame[j]==0)
         {
-            print_table(frame);
             cout <<"EOF ERROR" <<endl <<endl;
             return 0;
         }
+    }
+    cout <<endl <<endl;
 
+    //General information
+    FDF?cout <<"CAN FD ":cout <<"CAN ";
+    IDE?cout <<"Extended ":cout <<"Base ";
+    RTR?cout <<"Remote ":cout <<"Data ";
+    cout <<"Frame, ";
+    if(data_length==1) cout <<"1 Data Byte, ";
+    else
+    {
+        data_length?cout <<data_length:cout <<"No";
+        cout <<" Data bytes, ";
+    }
+    cout <<"length: " <<frame.size()/8 <<" bytes";
+    cout <<endl <<endl;
 
-//---------------------------------------------
-//------------Display frame--------------------
-//---------------------------------------------
-    display_analyzed_frame(identifier, DLC, DATA, received_stuff_count,received_CRC,IDE,FDF,BRS,ESI);
 
 //---------------------------------------------
 //------------------Free-----------------------
@@ -551,227 +788,4 @@ identifier.clear();DLC.clear();DATA.clear();received_stuff_count.clear();receive
 crc_input.clear();calculated_stuff_count.clear();calculated_CRC.clear();
 
     return 1;
-}
-
-void display_analyzed_frame(vector <bool> const& identifier, vector <bool> const&  DLC, vector <bool> const&  DATA,
-                            vector <bool> const& stuff_count, vector <bool> const& CRC, const bool IDE, const bool FDF,
-                            const bool BRS, const bool ESI)
-{
-    unsigned int data_length=data_length_from_dlc(DLC);
-
-    if(FDF==0) //can
-        if(data_length>8)
-            data_length=8;
-
-    cout <<endl;
-
-    if (FDF)
-        cout <<"CAN FD Data Frame:";
-    else
-        cout <<"CAN Data Frame:";
-
-    cout<<endl<<endl;
-
-
-    //basic or long format
-    if(IDE==0)
-        cout <<"In Basic Format, ";
-    else
-        cout <<"In Extended Format, ";
-
-
-
-
-    if (FDF)
-    {
-        //BRS
-        cout <<"Bit Rate Switch ";
-        if(BRS==1)
-            cout <<"Activated.";
-        else
-            cout <<"Deactivated";
-
-        cout <<endl <<endl;
-
-        //ESI
-        cout <<"Frame in: ";
-        if(ESI==0)
-            cout <<"Active Error State.";
-        else
-            cout <<"Passive Error State.";
-        cout <<endl <<endl;
-    }
-
-    //Identifier
-    cout <<"Identifier: ";
-    print_table(identifier);
-
-    //Data Field
-    cout <<"Frame has " <<data_length <<" data bytes: ";
-    print_table(DATA);
-
-    if(FDF)
-    {
-        //CRC Field
-        print_stuff_count(stuff_count);
-    }
-
-    cout <<"CRC Sequence: ";
-    print_table_inverted(CRC);
-
-}
-
-
-/*------------------------------------------------------------------------------
---------------------------------CRC Calculation---------------------------------
-------------------------------------------------------------------------------*/
-
-//calculate CRC of a frame
-//In CAN, the input is the no-stuffed sub frame (from SOF to last Data byte)
-//In CAN FD, the input is the dynamic stuffed sub frame (from SOF to last Data byte)
-vector <bool> crc(vector <bool> const& input,const unsigned int crc_version)
-{
-    vector <bool> crc_input=input;
-    vector <bool> crc_output(crc_version,0);
-    vector <bool> zeros (crc_version,0);
-
-    unsigned int i,j,loop;
-
-    //Modify crc init in CRC-17 and CRC-21
-    if(crc_version==17 || crc_version==21)
-        crc_output[crc_version-1]=1;
-
-    //Add 'crc_version' zeros to the end of crc_input
-    crc_input.insert(crc_input.end(),zeros.begin(),zeros.end());
-    loop=crc_input.size();
-
-    //calculate crc
-    for(i=0;i<loop;i++)
-    {
-        //if MSB of crc_output=0 then shift left
-        if(crc_output[crc_version-1]==0)
-        {
-            for(j=crc_version-1;j>0;j--)
-                crc_output[j]=crc_output[j-1];
-
-            crc_output[0]=crc_input[0];
-
-            crc_input.erase(crc_input.begin());
-        }
-
-        //if MSB of crc_output=1 then shift left and xor with crc polynomial
-        else if(crc_output[crc_version-1]==1)
-        {
-            //xor with polynomial depending on crc_version
-            if(crc_version==15)
-            {
-                for(j=crc_version-1;j>0;j--)
-                {
-                    if(j==14 || j==10 || j==8 || j==7 || j==4 || j==3)
-                        crc_output[j]=crc_output[j-1]^1;
-                    else
-                        crc_output[j]=crc_output[j-1];
-                }
-            }
-            else if(crc_version==17)
-            {
-                for(j=crc_version-1;j>0;j--)
-                {
-                    if(j==16 || j==14 || j==13 || j==11 || j==6 || j==4 || j==3 || j==1)
-                        crc_output[j]=crc_output[j-1]^1;
-                    else
-                        crc_output[j]=crc_output[j-1];
-                }
-            }
-            else if(crc_version==21)
-            {
-                for(j=crc_version-1;j>0;j--)
-                {
-                    if(j==20 || j==13 || j==11 || j==7 || j==4 || j==3 || j==1)
-                        crc_output[j]=crc_output[j-1]^1;
-                    else
-                        crc_output[j]=crc_output[j-1];
-                }
-            }
-
-            crc_output[0]=crc_input[0]^1;
-
-            crc_input.erase(crc_input.begin());
-        }
-
-    }
-
-    //free
-    crc_input.clear(); zeros.clear();
-
-    return crc_output;
-}
-
-//calculate stuff count of a dynamic stuffed sub frame
-vector <bool> stuff_bit_count(const unsigned int stuff)
-{
-    vector <bool> output(4);
-    unsigned int stuff_mod_8;
-
-    stuff_mod_8=stuff%8;
-
-    //return stuff count as follows
-    //bit2 bit1 bit0 parity
-    switch(stuff_mod_8)
-    {
-    case 0:
-        output={0,0,0,0};
-        break;
-    case 1:
-        output={1,0,0,1};
-        break;
-    case 2:
-        output={1,1,0,0};
-        break;
-    case 3:
-        output={0,1,0,1};
-        break;
-    case 4:
-        output={0,1,1,0};
-        break;
-    case 5:
-        output={1,1,1,1};
-        break;
-    case 6:
-        output={1,0,1,0};
-        break;
-    case 7:
-        output={0,0,1,1};
-        break;
-    }
-
-    return output;
-}
-
-//For CAN, CRC calculation is used on unstuffed frame
-vector <bool> unstuff_frame(vector <bool> const& input)
-{
-    vector <bool> frame=input;
-    unsigned int k(1);
-    vector <bool>::iterator it;
-
-    for(it=frame.begin()+1;it<frame.end()-1;it++)
-    {
-        if(*it==*(it-1))
-        {
-            k++;
-            if(k==5)
-            {
-                k=1;
-                if(*(it+1)==*(it+2))
-                    k++;
-                frame.erase(it+1);
-                it++;
-            }
-        }
-        else
-            k=1;
-    }
-
-    return frame;
 }
