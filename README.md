@@ -1,4 +1,4 @@
-# CAN-FD_Frame_Generator
+# CAN-FD_Frame_Generator_Analyzer
 This program can generate random CAN/CAN FD frames, and analyse them.
 
 To run the program you need to have g++ compiler installed, type "g++ --version" to check if it's installed, if not,
