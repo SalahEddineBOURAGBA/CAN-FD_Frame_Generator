@@ -1,5 +1,5 @@
-#ifndef GENERATOR_FUNCTIONS
-#define GENERATOR_FUNCTIONS
+#ifndef FRAMES_GENERATOR
+#define FRAMES_GENERATOR
 
 
 #include <stdlib.h>
@@ -34,4 +34,4 @@ embeddedvector <bool> unstuff_frame(embeddedvector <bool> const& input);
 embeddedvector <bool> generate_frame(const CANFDFrame &inFrame);
 
 
-#endif // GENERATOR_FUNCTIONS
+#endif // FRAMES_GENERATOR
