@@ -1,4 +1,4 @@
-#include "generator_functions.h"
+#include "frames_generator.h"
 
 
 /*------------------------------------------------------------------------------
