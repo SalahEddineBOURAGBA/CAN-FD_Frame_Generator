@@ -32,7 +32,7 @@ template <class TYPE> class embeddedvector
 	}
 
 	//constructor: allocate inCount elements of a table
-	public : embeddedvector (const TYPE inArray [], const size_t inCount) :	mData (nullptr), mLength (inCount),	mSize (inCount + 20)
+	public: embeddedvector (const TYPE inArray [], const size_t inCount) :	mData (nullptr), mLength (inCount),	mSize (inCount + 20)
 	{
 		mData = new TYPE [mSize] ;
 		for (size_t i=0 ; i<mLength ; i++) 
@@ -60,14 +60,14 @@ template <class TYPE> class embeddedvector
 	//remove an element from a fixed position
 	public: void removeAtIndex (const size_t inIndex) 
 	{
-    	if (inIndex < mLength) 
-    	{
+    		if (inIndex < mLength) 
+	    	{
 			mLength -- ;
 			for (size_t i=inIndex ; i<mLength ; i++) 
 			{
 				mData [i] = mData [i+1] ;
 			}
-    	}
+	    	}
 	}
 
 	//remove successive elements between two positions
