@@ -17,10 +17,10 @@ CANFDFrame::CANFDFrame(const bool x)
     mFDF=((rand()%100)>50)?1:0;
     mIDE=((rand()%100)>50)?1:0;
     mBRS=((rand()%100)>50)?1:0;
-    //mESI=((rand()%100)>50)?1:0;
-    mESI=0;
-    //mRTR=((rand()%100)>50)?1:0;
-    mRTR=0;
+    mESI=((rand()%100)>50)?1:0;
+    //mESI=0;
+    mRTR=((rand()%100)>50)?1:0;
+    //mRTR=0;
 
     //Identifier Field
     mID = 0;
